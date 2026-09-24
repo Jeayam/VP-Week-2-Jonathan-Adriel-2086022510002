@@ -44,7 +44,7 @@ class Lab02App extends StatelessWidget {
     return MaterialApp(
       title: 'Warung Digital',
       theme: ThemeData(colorSchemeSeed: const Color(0xFF00696E)),
-      home: MenuScreen(),
+      home: const MenuScreen(),
     );
   }
 }
@@ -105,9 +105,8 @@ class _MenuScreenState extends State<MenuScreen> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Filtering. Recomputed from scratch on every rebuild, inside build().
+  // Filtering. Recomputed from scratch on every rebuild.
+  List<MenuItem> get _visibleItems {
     List<MenuItem> visible = [];
     for (MenuItem item in _items) {
       if (_query.isEmpty ||
@@ -115,13 +114,14 @@ class _MenuScreenState extends State<MenuScreen> {
         visible.add(item);
       }
     }
+    return visible;
+  }
 
-    // Totalling. Also here. Also on every rebuild. O(n*m), because why not.
+  // Totalling. Also here. Also on every rebuild. O(n*m), because why not.
+  int get _totalPrice {
     int total = 0;
-    int lineCount = 0;
     _quantities.forEach((String id, int qty) {
       if (qty > 0) {
-        lineCount = lineCount + 1;
         for (MenuItem item in _items) {
           if (item.id == id) {
             total = total + (item.price * qty);
@@ -129,6 +129,50 @@ class _MenuScreenState extends State<MenuScreen> {
         }
       }
     });
+    return total;
+  }
+
+  int get _lineCount {
+    int lineCount = 0;
+    _quantities.forEach((String id, int qty) {
+      if (qty > 0) {
+        lineCount = lineCount + 1;
+      }
+    });
+    return lineCount;
+  }
+
+  // Empty state biar build bisa lebih sedikit isinya
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.search_off, size: 48, color: Colors.grey),
+          const SizedBox(height: 8),
+          Text(
+            'Tidak ada menu yang cocok dengan "$_query"',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () {
+              _searchController.clear();
+              setState(() => _query = '');
+            },
+            child: const Text('Hapus pencarian'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    List<MenuItem> visible = _visibleItems;
+    int total = _totalPrice;
+    int lineCount = _lineCount;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Warung Digital')),
@@ -153,28 +197,7 @@ class _MenuScreenState extends State<MenuScreen> {
           // ------------------------------------------------- list, or empty state
           Expanded(
             child: visible.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.search_off, size: 48, color: Colors.grey),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tidak ada menu yang cocok dengan "$_query"',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 12),
-                        TextButton(
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _query = '');
-                          },
-                          child: const Text('Hapus pencarian'),
-                        ),
-                      ],
-                    ),
-                  )
+                ? _buildEmptyState()
                 : ListView.builder(
                     controller: _listController,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
